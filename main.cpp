@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     // get all non-flag arguments
     // visit them by index
     std::cout << "Non-flag arguments:\n";
-    for (int i = 0;; ++i) {
+    for (int i = 0; i < parser.size(); ++i) {
         std::string arg = parser.At(i);
         if (arg == fpr::invalid_arg) {
             break;

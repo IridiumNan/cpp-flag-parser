@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -67,18 +66,6 @@ class FlagParser {
             throw std::invalid_argument(
                 "Invalid args, format flag with --key=value or -short=value");
         }
-
-        // below cdoe is deprecated
-        // Use [pushNewFlagValuePair] to push new pair safe
-        // while (pair[key_start] == '-') {
-        //     key_start++;
-        // }
-        //
-        // string key = pair.substr(key_start, equal_pos - 1);
-        // string value = pair.substr(equal_pos - 1, pair.size() - 1);
-
-        // push this pair into map then return true for skip this arg
-        // flag_pairs[key] = value;
 
         string flag = pair.substr(0, equal_pos);
         string value = pair.substr(equal_pos + 1, pair.size());
@@ -164,13 +151,17 @@ class FlagParser {
 
     // At function visit the all no_flag_args with original sequence
     // return [invalid_arg] if index out of range
-    arg_type At(int index) {
+    // You should use if arg == invalid_arg to verify it
+    arg_type At(int index) const {
         if (index >= no_flag_args.size()) {
             return invalid_arg;
         }
 
         return no_flag_args[index];
     }
+
+    // size return the non-flag args count
+    size_t size() const { return no_flag_args.size(); }
 
     // Flag find the value by flag string
     // it will search both
