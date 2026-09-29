@@ -9,6 +9,11 @@ You should not use it to assign the no value flag like `--verbose` or `-v`, use 
 ## Quick Start
 
 - download `FlagParser.hpp` then include。
+
+> [!NOTE]
+> All you need is the hpp file
+> There is no cpp source file for this class
+
 - basic usage：
 
 This content already written on `main.cpp`
@@ -49,9 +54,35 @@ int main(int argc, char** argv) {
 }
 ```
 
+- Compile
+
+```bash
+mkdir bin
+g++ -std=c++17 main.cpp -o bin/main
+```
+
 - Run
 
 ```bash
-g++ -std=c++17 main.cpp -o main
-./main --host=example.com -p 9090 --verbose=true file1.txt file2.txt
+bin/main --host=example.com -p 9090 --verbose=true file1.txt file2.txt
+
+# output
+Host:    example.com
+Port:    9090
+Verbose: true
+Non-flag arguments:
+  [0] file1.txt
+  [1] file2.txt
+```
+
+```bash
+bin/main hello world
+
+# output
+Host:    127.0.0.1
+Port:    8080
+Verbose: false
+Non-flag arguments:
+  [0] hello
+  [1] world
 ```
