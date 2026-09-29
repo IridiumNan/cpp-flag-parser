@@ -12,6 +12,7 @@ using flag_type = string;
 using arg_type = string;
 
 const string invalid_arg = "";
+const string enable_value = "true";
 
 // not_found_idx is the max limit of size_t
 // The [string.find](char) will return it if not found
@@ -27,7 +28,7 @@ class FlagParser {
     std::unordered_map<flag_type, arg_type> flag_pairs;
 
     // isFlagStr check if this arg is a flag with leading char '-'
-    bool isFlagStr(string arg) { return arg[0] == '-'; }
+    bool isFlagStr(const string arg) { return arg[0] == '-'; }
 
     // pushNewFlagValuePair will stript the leading '-' on the flag for parsing
     // then store safe
@@ -35,11 +36,10 @@ class FlagParser {
                               const arg_type &value) {
 
         string flag = stripFlagNameLeading(raw_flag);
-        flag_pairs[flag] = value;
 
-        // DEBUG information
-        // std::cout << "push new flag pair value, flag: " << flag
-        //           << "\tvalue: " << value << '\n';
+        if (flag.empty())
+            return;
+        flag_pairs[flag] = value;
     }
 
     // trySingleFlagValuePair try to parse this arg as flag=value then push it
@@ -73,7 +73,12 @@ class FlagParser {
         return true;
     }
 
-    // stripFlagNameLeading, cut the leaading '-' on the front of raw flag
+    // enableFlag set the value of this flag as [enable_value]
+    void enableFlag(const flag_type &name) {
+        pushNewFlagValuePair(name, enable_value);
+    }
+
+    // stripFlagNameLeading, cut the leading '-' on the front of raw flag
     arg_type stripFlagNameLeading(const arg_type &name) {
         size_t start = 0;
         while (name[start] == '-') {
@@ -91,13 +96,14 @@ class FlagParser {
     // -p 8080
     // -p=8080
     //
+    //
+    // for flag without any value, it set this flag as enable
+    // check by Flag(name...) == [enable_value] or IsEnableFlag(name...)
+    //
     // Other no flag paired args can be visit by [At](index) function
     //
     // NOTE:
     // If args[i] is empty str, it will be omit
-    //
-    // WARN: This class not parse the no value flag like --verbose
-    // It just parse flag-value pair
     FlagParser(int argv, char **args) {
 
         arg_type curr_arg;
@@ -109,14 +115,48 @@ class FlagParser {
         // store current flag
         flag_type curr_flag;
 
+        bool flag_end = false;
+
         for (int i = 1; i < argv; i++) {
 
             curr_arg = args[i];
             if (curr_arg.empty())
                 continue;
 
+            if (stripFlagNameLeading(curr_arg).empty()) {
+                flag_end = true;
+                continue;
+            }
+
+            // to mark that flag pair ended, use '--' or '-'
+            // all arguments will be treated as positioinal args
+            if (flag_end) {
+                no_flag_args.push_back(curr_arg);
+                continue;
+            }
+
             // add new pair then reset status
             if (expecte_value) {
+
+                // A flag-looking arg while a value is pending means the
+                // pending flag carries no value of its own.
+                if (isFlagStr(curr_arg)) {
+
+                    // consecious flags, set the first flag's value as "true"
+                    enableFlag(curr_flag);
+
+                    // trySingleFlagValuePair stores the pair itself and
+                    // reports success. Without this continue the same text
+                    // would also be stored as the pending flag's value.
+                    if (trySingleFlagValuePair(curr_arg)) {
+                        expecte_value = false;
+                        continue;
+                    }
+
+                    curr_flag = curr_arg;
+                    continue;
+                }
+
                 // flag_map[curr_flag] = curr_arg;
                 pushNewFlagValuePair(curr_flag, curr_arg);
                 expecte_value = false;
@@ -125,8 +165,6 @@ class FlagParser {
 
             // if not flag string, push into no_flag_args
             if (!isFlagStr(curr_arg)) {
-                // DEBUG information
-                // std::cout << "push new no flag value: " << curr_arg << '\n';
                 no_flag_args.push_back(curr_arg);
                 continue;
             }
@@ -141,11 +179,12 @@ class FlagParser {
                 // parse as single flag failed, set curr_flag
                 expecte_value = true;
                 curr_flag = curr_arg;
-                // DEBUG information
-                // std::cout << "expecte_value = true" << "curr_flag " <<
-                // curr_flag
-                // << '\n';
             }
+        }
+
+        // treat the last flag as enable
+        if (expecte_value == true) {
+            enableFlag(curr_flag);
         }
     }
 
@@ -176,10 +215,6 @@ class FlagParser {
         string flag_name = stripFlagNameLeading(name);
         string flag_short_name = stripFlagNameLeading(short_name);
 
-        // DEBUG information
-        // std::cout << "seach for flag, name: " << flag_name
-        //           << "\t short_name: " << flag_short_name << '\n';
-
         // this mean name of flag found, return this vlaue directly
         if (flag_pairs.find(flag_name) != flag_pairs.end()) {
 
@@ -189,6 +224,31 @@ class FlagParser {
         }
 
         return default_value;
+    }
+
+    // IsEnableFlag return if this flag is enable
+    // to enable a flag, use
+    // --flag-name without any arguments after that or
+    // --falg-name --next-flag
+    // e.g.  --verbose --debug --output file.txt
+    // The verbose and debug will be enabled
+    //
+    // if enabled, return true else false
+    bool IsEnableFlag(const flag_type &name, const flag_type &short_name) {
+        bool res = false;
+
+        string flag_name = stripFlagNameLeading(name);
+        string flag_short_name = stripFlagNameLeading(short_name);
+
+        if (flag_pairs.find(flag_name) != flag_pairs.end() &&
+            flag_pairs[flag_name] == enable_value) {
+            res = true;
+        } else if (flag_pairs.find(flag_short_name) != flag_pairs.end() &&
+                   flag_pairs[flag_short_name] == enable_value) {
+            res = true;
+        }
+
+        return res;
     }
 };
 
